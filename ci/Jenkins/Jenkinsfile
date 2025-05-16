@@ -16,7 +16,7 @@ pipeline {
     stage('Checkout') {
       steps {
         // Cloner ton repo
-        git branch: 'main', url: 'https://github.com/TyDzZeR/devops-demo-project.git'
+        git branch: 'main', url: 'https://github.com/tydzzer/devops-demo-project.git'
       }
     }
 
@@ -62,10 +62,10 @@ pipeline {
             cd helm/app
             sed -i 's/tag: .*/tag: "${params.build_version}"/' values.yaml
             git config user.email "steve.nguyen@efrei.net"
-            git config user.name "TyDzZeR"
+            git config user.name "tydzzer"
             git add values.yaml
             git commit -m "Update deployment image to version ${params.build_version}"
-            git push https://${GITHUB_TOKEN}@github.com/TyDzZeR/devops-demo-project.git HEAD:main
+            git push https://${GITHUB_TOKEN}@github.com/tydzzer/devops-demo-project.git HEAD:main
           '''
         }
       }
