@@ -6,17 +6,16 @@ pipeline {
   }
 
   environment {
-    // URL SonarQube local
+    // URL de SonarQube
     SONAR_URL      = "http://sonarqube:9000"
-    // Nom complet de l'image Docker (DockerHub)
+    // Image Docker à pousser sur DockerHub
     DOCKER_IMAGE   = "efreistevers1/demo-java-app:${params.build_version}"
   }
 
   stages {
     stage('Checkout') {
       steps {
-        // Cloner ton repo
-        git branch: 'main', url: 'https://github.com/tydzzer/devops-demo-project.git'
+        git branch: 'main', url: 'https://github.com/TyDzZeR/devops-demo-project.git'
       }
     }
 
@@ -31,7 +30,6 @@ pipeline {
 
     stage('Static Code Analysis') {
       steps {
-        // Utiliser le token stocké en credential
         withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_AUTH_TOKEN')]) {
           sh '''
             cd demo-java-app
@@ -44,9 +42,9 @@ pipeline {
     stage('Build and Push Docker Image') {
       steps {
         script {
-          // Build de l'image
+          // Construire l'image et récupérer l'objet
           def img = docker.build("${DOCKER_IMAGE}")
-          // Push sécurisé via credential Jenkins
+          // Pousser l'image avec les credentials Jenkins
           docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials') {
             img.push("${params.build_version}")
             img.push() // tag latest
@@ -62,18 +60,12 @@ pipeline {
             cd helm/app
             sed -i 's/tag: .*/tag: "${params.build_version}"/' values.yaml
             git config user.email "steve.nguyen@efrei.net"
-            git config user.name "tydzzer"
+            git config user.name "TyDzZeR"
             git add values.yaml
             git commit -m "Update deployment image to version ${params.build_version}"
-            git push https://${GITHUB_TOKEN}@github.com/tydzzer/devops-demo-project.git HEAD:main
+            git push https://${GITHUB_TOKEN}@github.com/TyDzZeR/devops-demo-project.git HEAD:main
           '''
         }
       }
     }
   }
-
-  post {
-    success { echo "Pipeline #${env.BUILD_ID} terminé avec succès !" }
-    failure { echo "Le pipeline a échoué. Vérifier les logs." }
-  }
-}
