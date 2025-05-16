@@ -49,7 +49,7 @@ pipeline {
           '''
           docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials') {
             // Login explicite
-            sh "docker login -u efreistevers1 -p e%x8*Jygz6SK!$n"
+            sh "docker login -u efreistevers1 -p 46@uU@M%PyBpyxU"
             sh "docker push ${DOCKER_IMAGE}"
           }
         }
