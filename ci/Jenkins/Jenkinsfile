@@ -6,19 +6,17 @@ pipeline {
   }
 
   environment {
-    // Adresse de SonarQube
-    SONAR_URL         = "http://172.16.23.111:9000"
-    // Tokens en clair (à sécuriser en production)
-    SONAR_AUTH_TOKEN  = "squ_d6aa1994b289d7fdd96a6f63ca79a66eef515e21"
-    GITHUB_TOKEN      = "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"
-    // Image Docker à pousser
-    DOCKER_IMAGE      = "efreistevers1/demo-java-app:${params.build_version}"
+    // URL SonarQube local
+    SONAR_URL      = "http://sonarqube:9000"
+    // Nom complet de l'image Docker (DockerHub)
+    DOCKER_IMAGE   = "efreistevers1/demo-java-app:${params.build_version}"
   }
 
   stages {
     stage('Checkout') {
       steps {
-        git branch: 'main', url: 'https://github.com/tydzzer/devops-demo-project'
+        // Cloner ton repo
+        git branch: 'main', url: 'https://github.com/TyDzZeR/devops-demo-project.git'
       }
     }
 
@@ -33,24 +31,25 @@ pipeline {
 
     stage('Static Code Analysis') {
       steps {
-        sh '''
-          cd demo-java-app
-          mvn sonar:sonar -Dsonar.login=${SONAR_AUTH_TOKEN} -Dsonar.host.url=${SONAR_URL}
-        '''
+        // Utiliser le token stocké en credential
+        withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_AUTH_TOKEN')]) {
+          sh '''
+            cd demo-java-app
+            mvn sonar:sonar -Dsonar.login=${SONAR_AUTH_TOKEN} -Dsonar.host.url=${SONAR_URL}
+          '''
+        }
       }
     }
 
     stage('Build and Push Docker Image') {
       steps {
         script {
-          sh '''
-            cd demo-java-app
-            docker build -t ${DOCKER_IMAGE} .
-          '''
+          // Build de l'image
+          def img = docker.build("${DOCKER_IMAGE}")
+          // Push sécurisé via credential Jenkins
           docker.withRegistry('https://index.docker.io/v1/', 'dockerhub-credentials') {
-            // Login explicite
-            sh "docker login -u efreistevers1 -p 46@uU@M%PyBpyxU"
-            sh "docker push ${DOCKER_IMAGE}"
+            img.push("${params.build_version}")
+            img.push() // tag latest
           }
         }
       }
@@ -58,25 +57,23 @@ pipeline {
 
     stage('Update Deployment File') {
       steps {
-        sh '''
-          cd helm/app
-          sed -i 's/tag: .*/tag: "${params.build_version}"/' values.yaml
-          git config user.email "steve.nguyen@efrei.net"
-          git config user.name "tydzzer"
-          git add values.yaml
-          git commit -m "Update deployment image to version ${params.build_version}"
-          git push https://${GITHUB_TOKEN}@github.com/tydzzer/devops-demo-project.git HEAD:main
-        '''
+        withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
+          sh '''
+            cd helm/app
+            sed -i 's/tag: .*/tag: "${params.build_version}"/' values.yaml
+            git config user.email "steve.nguyen@efrei.net"
+            git config user.name "TyDzZeR"
+            git add values.yaml
+            git commit -m "Update deployment image to version ${params.build_version}"
+            git push https://${GITHUB_TOKEN}@github.com/TyDzZeR/devops-demo-project.git HEAD:main
+          '''
+        }
       }
     }
   }
 
   post {
-    success {
-      echo "Pipeline #${env.BUILD_ID} terminé avec succès!"
-    }
-    failure {
-      echo "Le pipeline a échoué. Vérifier les logs."
-    }
+    success { echo "Pipeline #${env.BUILD_ID} terminé avec succès !" }
+    failure { echo "Le pipeline a échoué. Vérifier les logs." }
   }
 }
